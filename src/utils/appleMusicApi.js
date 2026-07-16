@@ -13,65 +13,67 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     throw new Error('MusicKit SDK not loaded in HTML');
   }
 
-  // Clear Apple's internal cached session keys (local, session, and cookies) if fresh init
-  if (!musicUserToken) {
-    // 1. Clear localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('MusicKit.')) {
-        localStorage.removeItem(key);
-      }
-    });
-    // 2. Clear sessionStorage
-    try {
-      Object.keys(sessionStorage).forEach(key => {
-        if (key.startsWith('MusicKit.')) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    } catch (e) {}
-    // 3. Clear Cookies
-    try {
-      document.cookie.split(";").forEach(c => {
-        const trimmed = c.trim();
-        const eqPos = trimmed.indexOf("=");
-        const name = eqPos > -1 ? trimmed.substr(0, eqPos) : trimmed;
-        if (name.startsWith("MusicKit.")) {
-          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-        }
-      });
-    } catch (e) {}
-  }
+  const cleanToken = developerToken.trim();
+  const effectiveStorefront = storefrontId || 'us';
 
+  // Try to get an existing instance first
+  let music = null;
   try {
-    const config = {
-      developerToken: developerToken.trim(),
-      app: {
-        name: 'VibeSync',
-        build: '1.0.0'
-      }
-    };
-    
-    if (storefrontId) {
-      config.storefrontId = storefrontId;
-    }
-
-    const music = await window.MusicKit.configure(config);
-
-    if (musicUserToken) {
-      music.musicUserToken = musicUserToken.trim();
-    }
-
-    // Save configuration in localStorage for reload persistence
-    localStorage.setItem('apple_music_developer_token', developerToken.trim());
-    if (musicUserToken) {
-      localStorage.setItem('apple_music_user_token', musicUserToken.trim());
-    }
-
-    return music;
-  } catch (error) {
-    console.error('Error configuring MusicKit:', error);
-    throw error;
+    music = window.MusicKit.getInstance();
+  } catch (e) {
+    // No instance exists yet, that's fine
   }
+
+  if (!music) {
+    // Configure MusicKit - it may throw "Storefront Country Code error"
+    // but the singleton instance is still created internally
+    try {
+      music = await window.MusicKit.configure({
+        developerToken: cleanToken,
+        storefrontId: effectiveStorefront,
+        app: {
+          name: 'VibeSync',
+          build: '1.0.0'
+        }
+      });
+    } catch (configError) {
+      const errStr = String(configError?.message || configError?.description || configError || '');
+      console.warn('MusicKit.configure() threw:', errStr);
+
+      // MusicKit v3 still creates the singleton even on storefront errors
+      // Try to recover it
+      try {
+        music = window.MusicKit.getInstance();
+      } catch (e) {
+        // getInstance also failed - truly broken
+        throw configError;
+      }
+
+      if (!music) {
+        throw configError;
+      }
+
+      console.log('Recovered MusicKit instance after storefront error');
+    }
+  }
+
+  // Set the developer token directly on the instance if needed
+  if (!music.developerToken) {
+    music.developerToken = cleanToken;
+  }
+
+  // Apply user token if provided
+  if (musicUserToken) {
+    music.musicUserToken = musicUserToken.trim();
+  }
+
+  // Save configuration in localStorage for reload persistence
+  localStorage.setItem('apple_music_developer_token', cleanToken);
+  if (musicUserToken) {
+    localStorage.setItem('apple_music_user_token', musicUserToken.trim());
+  }
+
+  return music;
 }
 
 /**
@@ -124,7 +126,7 @@ export async function searchAppleMusicTrack(trackName, artistName) {
   if (!isMusicKitInitialized()) return null;
   const music = window.MusicKit.getInstance();
   
-  const storefront = music.storefrontId || 'us';
+  const storefront = music.storefrontId || localStorage.getItem('apple_music_storefront') || 'us';
   // Standardize and clean query term
   const term = `${trackName} ${artistName}`.replace(/[()\-+]/g, "").trim();
 

@@ -22,7 +22,7 @@ export default function SearchAndPlay({ onPlayTrack }) {
     
     try {
       const music = window.MusicKit.getInstance();
-      const storefront = music.storefrontId || 'us';
+      const storefront = music.storefrontId || localStorage.getItem('apple_music_storefront') || 'us';
       
       const response = await music.api.music(`/v1/catalog/${storefront}/search`, {
         term: query,
