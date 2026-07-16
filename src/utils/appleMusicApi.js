@@ -24,13 +24,15 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     // No instance exists yet, that's fine
   }
 
-  if (!music) {
+  // Check if we need to reconfigure
+  const needsConfigure = !music || music.developerToken !== cleanToken;
+
+  if (needsConfigure) {
     // Configure MusicKit - it may throw "Storefront Country Code error"
     // but the singleton instance is still created internally
     try {
       music = await window.MusicKit.configure({
         developerToken: cleanToken,
-        storefrontId: effectiveStorefront,
         app: {
           name: 'VibeSync',
           build: '1.0.0'
