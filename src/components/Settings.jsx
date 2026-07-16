@@ -41,6 +41,22 @@ export default function Settings({ onAppleMusicConnected }) {
     const cleanDevToken = amDevToken.trim();
     const cleanUserToken = amUserToken ? amUserToken.trim() : '';
 
+    let tokenPayloadDetails = "";
+    try {
+      const parts = cleanDevToken.split('.');
+      if (parts.length === 3) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        tokenPayloadDetails = ` [Token Details: exp=${new Date(payload.exp * 1000).toLocaleDateString()}, origin=${JSON.stringify(payload.origin || 'none')}]`;
+      }
+    } catch (e) {
+      console.warn("Could not decode JWT payload", e);
+    }
+
     try {
       localStorage.setItem('apple_music_developer_token', cleanDevToken);
       localStorage.setItem('apple_music_storefront', amStorefront);
@@ -63,7 +79,7 @@ export default function Settings({ onAppleMusicConnected }) {
     } catch (err) {
       console.error(err);
       const errMsg = err.message || err.statusText || (err.description) || JSON.stringify(err);
-      setAmError(`Failed to initialize MusicKit: ${errMsg}`);
+      setAmError(`Failed to initialize MusicKit: ${errMsg}${tokenPayloadDetails}`);
     } finally {
       setAmLoading(false);
     }
