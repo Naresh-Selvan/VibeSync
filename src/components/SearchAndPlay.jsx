@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Play, Music } from 'lucide-react';
-import { isMusicKitInitialized } from '../utils/appleMusicApi';
+import { searchSongs } from '../utils/itunesApi';
 
 export default function SearchAndPlay({ onPlayTrack }) {
   const [query, setQuery] = useState('');
@@ -12,35 +12,14 @@ export default function SearchAndPlay({ onPlayTrack }) {
     e.preventDefault();
     if (!query.trim()) return;
 
-    if (!isMusicKitInitialized()) {
-      setError('Please connect your Apple Music account in Settings first.');
-      return;
-    }
-
     setLoading(true);
     setError('');
     
     try {
-      const music = window.MusicKit.getInstance();
-      const storefront = music.storefrontId || localStorage.getItem('apple_music_storefront') || 'us';
-      
-      const response = await music.api.music(`/v1/catalog/${storefront}/search`, {
-        term: query,
-        types: 'songs',
-        limit: 18
-      });
+      const country = localStorage.getItem('apple_music_storefront') || 'us';
+      const songs = await searchSongs(query, 18, country);
 
-      if (response.data && response.data.results && response.data.results.songs) {
-        const songs = response.data.results.songs.data.map(song => ({
-          id: song.id,
-          name: song.attributes.name,
-          artist: song.attributes.artistName,
-          album: song.attributes.albumName,
-          duration: song.attributes.durationInMillis,
-          artworkUrl: song.attributes.artwork 
-            ? song.attributes.artwork.url.replace('{w}', '300').replace('{h}', '300')
-            : null
-        }));
+      if (songs.length > 0) {
         setResults(songs);
       } else {
         setResults([]);
@@ -48,7 +27,7 @@ export default function SearchAndPlay({ onPlayTrack }) {
       }
     } catch (err) {
       console.error(err);
-      const errMsg = err.message || err.statusText || (err.description) || JSON.stringify(err);
+      const errMsg = err.message || err.statusText || JSON.stringify(err);
       setError(`Failed to search Apple Music catalog: ${errMsg}`);
     } finally {
       setLoading(false);
