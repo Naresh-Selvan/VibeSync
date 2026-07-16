@@ -8,7 +8,7 @@
  * @param {string|null} musicUserToken - Existing user token if available
  * @returns {Promise<Object>} The configured MusicKit instance
  */
-export async function initMusicKit(developerToken, musicUserToken = null) {
+export async function initMusicKit(developerToken, musicUserToken = null, storefrontId = 'in') {
   if (typeof window.MusicKit === 'undefined') {
     throw new Error('MusicKit SDK not loaded in HTML');
   }
@@ -16,6 +16,7 @@ export async function initMusicKit(developerToken, musicUserToken = null) {
   try {
     const music = await window.MusicKit.configure({
       developerToken: developerToken.trim(),
+      storefrontId: storefrontId,
       app: {
         name: 'VibeSync',
         build: '1.0.0'

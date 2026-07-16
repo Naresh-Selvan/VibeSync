@@ -8,6 +8,7 @@ export default function Settings({ onAppleMusicConnected }) {
   const [amDevToken, setAmDevToken] = useState(localStorage.getItem('apple_music_developer_token') || '');
   const [amUserToken, setAmUserToken] = useState(localStorage.getItem('apple_music_user_token') || '');
   
+  const [amStorefront, setAmStorefront] = useState(localStorage.getItem('apple_music_storefront') || 'in');
   const [isAppleConnected, setIsAppleConnected] = useState(isMusicKitInitialized());
   
   const [showQrModal, setShowQrModal] = useState(false);
@@ -42,11 +43,12 @@ export default function Settings({ onAppleMusicConnected }) {
 
     try {
       localStorage.setItem('apple_music_developer_token', cleanDevToken);
+      localStorage.setItem('apple_music_storefront', amStorefront);
       if (cleanUserToken) {
         localStorage.setItem('apple_music_user_token', cleanUserToken);
       }
       
-      const music = await initMusicKit(cleanDevToken, cleanUserToken || null);
+      const music = await initMusicKit(cleanDevToken, cleanUserToken || null, amStorefront);
       
       // If user token is not set, authorize the user
       if (!music.musicUserToken) {
@@ -195,6 +197,26 @@ export default function Settings({ onAppleMusicConnected }) {
             </ol>
           </div>
         )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Apple Music Storefront Country</label>
+          <select 
+            className="input-field"
+            value={amStorefront}
+            onChange={(e) => setAmStorefront(e.target.value)}
+            disabled={isAppleConnected}
+            style={{ background: 'rgba(0, 0, 0, 0.3)', color: 'white' }}
+          >
+            <option value="in">India (in)</option>
+            <option value="us">United States (us)</option>
+            <option value="gb">United Kingdom (gb)</option>
+            <option value="ca">Canada (ca)</option>
+            <option value="au">Australia (au)</option>
+            <option value="de">Germany (de)</option>
+            <option value="fr">France (fr)</option>
+            <option value="jp">Japan (jp)</option>
+          </select>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Apple Music Developer JWT Token</label>
