@@ -19,9 +19,17 @@ export default function Settings({ onAppleMusicConnected }) {
   const [showLfmInstructions, setShowLfmInstructions] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
+  const [debugLogs, setDebugLogs] = useState([]);
+
   useEffect(() => {
     // Check Apple Music Connection Status
     setIsAppleConnected(isMusicKitInitialized());
+
+    // Refresh captured logs periodically
+    const interval = setInterval(() => {
+      setDebugLogs([...(window.__debugLogs || [])]);
+    }, 1200);
+    return () => clearInterval(interval);
   }, []);
 
   const saveLastfmConfig = () => {
@@ -384,6 +392,38 @@ export default function Settings({ onAppleMusicConnected }) {
           </div>
         </div>
       )}
+      {/* System Diagnostics Panel */}
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+        <h3 style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>System Diagnostics Logs</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          If playback or initialization fails, copy these logs and paste them to the developer.
+        </p>
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.4)',
+          padding: '12px',
+          borderRadius: '8px',
+          maxHeight: '180px',
+          overflowY: 'auto',
+          fontFamily: 'monospace',
+          fontSize: '0.75rem',
+          textAlign: 'left',
+          whiteSpace: 'pre-wrap',
+          color: '#34D399',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          {debugLogs.length > 0 ? debugLogs.join('\n') : 'No logs recorded yet.'}
+        </div>
+        <button 
+          className="btn btn-secondary" 
+          style={{ alignSelf: 'flex-start', fontSize: '0.8rem', padding: '4px 12px' }}
+          onClick={() => {
+            navigator.clipboard.writeText(debugLogs.join('\n'));
+            alert('Logs copied to clipboard!');
+          }}
+        >
+          Copy Logs to Clipboard
+        </button>
+      </div>
     </div>
   );
 }
