@@ -139,9 +139,20 @@ export default function App() {
       setMatchingStatus({});
       setLastSeededTrackId(song.id);
 
-      // Set player queue and start playing
-      await music.setQueue({ song: song.id });
-      await music.play();
+      // Set player queue and start playing (using startPlaying: true to bypass browser autoplay blocks)
+      try {
+        await music.setQueue({ song: song.id, startPlaying: true });
+      } catch (queueErr) {
+        console.warn('setQueue with song failed, trying fallback with songs array', queueErr);
+        await music.setQueue({ songs: [song.id], startPlaying: true });
+      }
+
+      // Explicit play invocation just in case startPlaying option is not supported or didn't auto-start
+      try {
+        await music.play();
+      } catch (playErr) {
+        console.warn('Explicit music.play() call failed or was already playing:', playErr);
+      }
       
       setCurrentTrack({
         id: song.id,
@@ -154,7 +165,8 @@ export default function App() {
       await generateAutoplayQueue(song.name, song.artist);
     } catch (err) {
       console.error('Play track failed', err);
-      alert('Failed to play track. Ensure Apple Music is fully initialized.');
+      const errMsg = err?.message || err?.description || err?.name || JSON.stringify(err);
+      alert(`Failed to play track: ${errMsg}\n\nEnsure Apple Music is fully initialized and active.`);
     }
   };
 

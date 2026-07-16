@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Smartphone, AlertTriangle, HelpCircle, Check, Key } from 'lucide-react';
-import { initMusicKit, isMusicKitInitialized } from '../utils/appleMusicApi';
+import { initMusicKit, isMusicKitInitialized, unauthorizeAppleMusic } from '../utils/appleMusicApi';
 
 export default function Settings({ onAppleMusicConnected }) {
   const [lastfmApiKey, setLastfmApiKey] = useState(localStorage.getItem('lastfm_api_key') || '');
@@ -107,9 +107,22 @@ export default function Settings({ onAppleMusicConnected }) {
     }
   };
 
-  const handleAppleDisconnect = () => {
+  const handleAppleDisconnect = async () => {
+    try {
+      await unauthorizeAppleMusic();
+    } catch (e) {
+      console.warn("unauthorizeAppleMusic failed", e);
+    }
     localStorage.removeItem('apple_music_developer_token');
     localStorage.removeItem('apple_music_user_token');
+    localStorage.removeItem('MusicKit.musicUserToken');
+    localStorage.removeItem('MusicKit.userToken');
+    localStorage.removeItem('MusicKit.token');
+    localStorage.removeItem('MusicKit.u');
+    localStorage.removeItem('music.musicUserToken');
+    localStorage.removeItem('music.userToken');
+    localStorage.removeItem('music.u');
+    localStorage.removeItem('music.token');
     setIsAppleConnected(false);
     setAmDevToken('');
     setAmUserToken('');

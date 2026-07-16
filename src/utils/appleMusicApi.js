@@ -93,7 +93,18 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
   // Save configuration in localStorage for reload persistence
   localStorage.setItem('apple_music_developer_token', cleanToken);
   if (musicUserToken) {
-    localStorage.setItem('apple_music_user_token', musicUserToken.trim());
+    const trimmedUserToken = musicUserToken.trim();
+    localStorage.setItem('apple_music_user_token', trimmedUserToken);
+
+    // Save user token to standard MusicKit and general storage keys to ensure SDK loads it natively
+    localStorage.setItem('MusicKit.musicUserToken', trimmedUserToken);
+    localStorage.setItem('MusicKit.userToken', trimmedUserToken);
+    localStorage.setItem('MusicKit.token', trimmedUserToken);
+    localStorage.setItem('MusicKit.u', trimmedUserToken);
+    localStorage.setItem('music.musicUserToken', trimmedUserToken);
+    localStorage.setItem('music.userToken', trimmedUserToken);
+    localStorage.setItem('music.u', trimmedUserToken);
+    localStorage.setItem('music.token', trimmedUserToken);
   }
 
   return music;
@@ -136,7 +147,18 @@ export async function unauthorizeAppleMusic() {
   if (!isMusicKitInitialized()) return;
   const music = window.MusicKit.getInstance();
   await music.unauthorize();
+  
+  // Clear all cached tokens and keys
+  localStorage.removeItem('apple_music_developer_token');
   localStorage.removeItem('apple_music_user_token');
+  localStorage.removeItem('MusicKit.musicUserToken');
+  localStorage.removeItem('MusicKit.userToken');
+  localStorage.removeItem('MusicKit.token');
+  localStorage.removeItem('MusicKit.u');
+  localStorage.removeItem('music.musicUserToken');
+  localStorage.removeItem('music.userToken');
+  localStorage.removeItem('music.u');
+  localStorage.removeItem('music.token');
 }
 
 export async function searchAppleMusicTrack(trackName, artistName) {
