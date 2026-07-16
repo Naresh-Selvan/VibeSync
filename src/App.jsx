@@ -172,9 +172,22 @@ export default function App() {
       } catch (err) {
         const errStr = String(err?.message || err?.description || err?.name || err || '');
         if (errStr.includes('CONTENT_EQUIVALENT')) {
-          const storefront = music.storefrontId || 'us';
-          console.log(`Caught CONTENT_EQUIVALENT error for song ${song.id}. Attempting to resolve equivalent ID in storefront: ${storefront}`);
+          console.log(`Caught CONTENT_EQUIVALENT error for song ${song.id}. Attempting to resolve actual user storefront first.`);
           
+          let storefront = music.storefrontId || 'us';
+          try {
+            const storefrontResponse = await music.api.music('/v1/me/storefront');
+            if (storefrontResponse && storefrontResponse.data && storefrontResponse.data.length > 0) {
+              storefront = storefrontResponse.data[0].id;
+              console.log(`Resolved actual user storefront region: ${storefront}`);
+              music.storefrontId = storefront;
+              localStorage.setItem('apple_music_storefront', storefront);
+            }
+          } catch (storefrontErr) {
+            console.warn("Failed to fetch user storefront on error fallback, using default", storefrontErr);
+          }
+          
+          console.log(`Querying equivalents for song ${song.id} in storefront: ${storefront}`);
           try {
             const response = await music.api.music(`/v1/catalog/${storefront}/songs`, {
               'filter[equivalents]': song.id

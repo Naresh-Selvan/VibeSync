@@ -107,6 +107,26 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     localStorage.setItem('music.token', trimmedUserToken);
   }
 
+  // Dynamically fetch and set user's actual storefront region if authorized
+  if (music && (musicUserToken || music.isAuthorized)) {
+    try {
+      music.api.music('/v1/me/storefront')
+        .then(response => {
+          if (response && response.data && response.data.length > 0) {
+            const userStorefront = response.data[0].id;
+            console.log(`Dynamically resolved user storefront: ${userStorefront}`);
+            music.storefrontId = userStorefront;
+            localStorage.setItem('apple_music_storefront', userStorefront);
+          }
+        })
+        .catch(e => {
+          console.warn("Failed to fetch user storefront, using default", e);
+        });
+    } catch (e) {
+      console.warn("Error initiating storefront fetch", e);
+    }
+  }
+
   return music;
 }
 
