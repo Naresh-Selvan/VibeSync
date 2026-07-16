@@ -13,13 +13,33 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     throw new Error('MusicKit SDK not loaded in HTML');
   }
 
-  // Clear Apple's internal cached session keys if we are doing a fresh init without a token
+  // Clear Apple's internal cached session keys (local, session, and cookies) if fresh init
   if (!musicUserToken) {
+    // 1. Clear localStorage
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('MusicKit.')) {
         localStorage.removeItem(key);
       }
     });
+    // 2. Clear sessionStorage
+    try {
+      Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('MusicKit.')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (e) {}
+    // 3. Clear Cookies
+    try {
+      document.cookie.split(";").forEach(c => {
+        const trimmed = c.trim();
+        const eqPos = trimmed.indexOf("=");
+        const name = eqPos > -1 ? trimmed.substr(0, eqPos) : trimmed;
+        if (name.startsWith("MusicKit.")) {
+          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+        }
+      });
+    } catch (e) {}
   }
 
   try {
