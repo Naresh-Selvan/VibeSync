@@ -226,12 +226,17 @@ export default function Settings({ onAppleMusicConnected }) {
             <ol style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <li>Open <a href="https://music.apple.com" target="_blank" rel="noreferrer" style={{ color: '#FC3C44', fontWeight: 'bold' }}>music.apple.com</a> on your PC and log in.</li>
               <li>Press <b>F12</b> (or right-click and choose <i>Inspect Element</i>) and go to the <b>Console</b> tab.</li>
-              <li>Paste the following code line and press Enter:
+              <li>Paste the following code line and press Enter to get the <b>Developer Token</b>:
                 <pre style={{ background: '#000', color: '#0f0', padding: '10px', borderRadius: '6px', overflowX: 'auto', marginTop: '6px', fontSize: '0.8rem', userSelect: 'all' }}>
                   console.log(MusicKit.getInstance().developerToken);
                 </pre>
               </li>
-              <li>Copy that long text block and paste it in the **Developer JWT Token** input below!</li>
+              <li>Paste the following code line and press Enter to get your <b>User Token</b>:
+                <pre style={{ background: '#000', color: '#0f0', padding: '10px', borderRadius: '6px', overflowX: 'auto', marginTop: '6px', fontSize: '0.8rem', userSelect: 'all' }}>
+                  console.log(MusicKit.getInstance().musicUserToken);
+                </pre>
+              </li>
+              <li>Copy both tokens and paste them below! This completely bypasses all login popups and VPN errors!</li>
             </ol>
           </div>
         )}
@@ -266,6 +271,19 @@ export default function Settings({ onAppleMusicConnected }) {
             style={{ fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }}
             value={amDevToken}
             onChange={(e) => setAmDevToken(e.target.value)}
+            disabled={isAppleConnected}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Apple Music User Token (Optional, bypasses popup login)</label>
+          <textarea 
+            rows="3"
+            placeholder="Paste your User JWT token here (bypasses login popup and geo-errors)..." 
+            className="input-field"
+            style={{ fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }}
+            value={amUserToken}
+            onChange={(e) => setAmUserToken(e.target.value)}
             disabled={isAppleConnected}
           />
         </div>
