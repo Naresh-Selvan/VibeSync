@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Key, Globe, Smartphone, RefreshCw, CheckCircle, AlertTriangle, HelpCircle } from 'lucide-react';
-import { getSpotifyToken, getSpotifyAuthUrl } from '../utils/spotifyApi';
+import { Smartphone, AlertTriangle, HelpCircle, Check, Key } from 'lucide-react';
 import { initMusicKit, isMusicKitInitialized } from '../utils/appleMusicApi';
 
-export default function Settings({ onSpotifyConnected, onAppleMusicConnected }) {
-  const [spotifyClientId, setSpotifyClientId] = useState(localStorage.getItem('spotify_client_id') || '');
+export default function Settings({ onAppleMusicConnected }) {
+  const [lastfmApiKey, setLastfmApiKey] = useState(localStorage.getItem('lastfm_api_key') || '');
   const [amDevToken, setAmDevToken] = useState(localStorage.getItem('apple_music_developer_token') || '');
   const [amUserToken, setAmUserToken] = useState(localStorage.getItem('apple_music_user_token') || '');
   
-  const [isSpotifyConnected, setIsSpotifyConnected] = useState(!!getSpotifyToken());
   const [isAppleConnected, setIsAppleConnected] = useState(isMusicKitInitialized());
   
   const [showQrModal, setShowQrModal] = useState(false);
@@ -17,31 +15,17 @@ export default function Settings({ onSpotifyConnected, onAppleMusicConnected }) 
   
   const [amLoading, setAmLoading] = useState(false);
   const [amError, setAmError] = useState('');
+  const [showLfmInstructions, setShowLfmInstructions] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
-    // Check Spotify Connection Status
-    setIsSpotifyConnected(!!getSpotifyToken());
-    
     // Check Apple Music Connection Status
     setIsAppleConnected(isMusicKitInitialized());
   }, []);
 
-  const saveSpotifyConfig = () => {
-    localStorage.setItem('spotify_client_id', spotifyClientId);
-    alert('Spotify Client ID Saved!');
-  };
-
-  const handleSpotifyLogin = () => {
-    if (!spotifyClientId) {
-      alert('Please enter a Spotify Client ID first.');
-      return;
-    }
-    localStorage.setItem('spotify_client_id', spotifyClientId);
-    
-    // Redirect to Spotify Auth
-    const redirectUri = window.location.origin + window.location.pathname;
-    window.location.href = getSpotifyAuthUrl(spotifyClientId, redirectUri);
+  const saveLastfmConfig = () => {
+    localStorage.setItem('lastfm_api_key', lastfmApiKey);
+    alert('Last.fm API Key Saved!');
   };
 
   const handleAppleConnect = async () => {
@@ -89,16 +73,15 @@ export default function Settings({ onSpotifyConnected, onAppleMusicConnected }) 
     alert('Disconnected Apple Music.');
   };
 
-  const handleSpotifyDisconnect = () => {
-    localStorage.removeItem('spotify_access_token');
-    localStorage.removeItem('spotify_token_expires_at');
-    setIsSpotifyConnected(false);
-    alert('Disconnected Spotify.');
+  const handleLastfmDisconnect = () => {
+    localStorage.removeItem('lastfm_api_key');
+    setLastfmApiKey('');
+    alert('Reset Last.fm key to default.');
   };
 
   const generateSyncQr = () => {
     const config = {
-      spotifyClientId,
+      lastfmApiKey,
       amDevToken,
       amUserToken: localStorage.getItem('apple_music_user_token') || ''
     };
@@ -114,47 +97,58 @@ export default function Settings({ onSpotifyConnected, onAppleMusicConnected }) 
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
       <h2 style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '10px' }}>Connection Center</h2>
       
-      {/* Spotify Panel */}
+      {/* Last.fm Recommendation Engine Panel */}
       <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#1DB954', fontSize: '1.4rem' }}>
-            <span style={{ fontSize: '1.8rem' }}>🟢</span> Spotify Recommendation Seed
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#E31B23', fontSize: '1.4rem' }}>
+            <span style={{ fontSize: '1.8rem' }}>🔴</span> Last.fm Recommendations (Free Engine)
           </h3>
-          <span className="glass-panel" style={{ padding: '4px 12px', fontSize: '0.85rem', color: isSpotifyConnected ? '#1DB954' : '#9CA3AF', borderColor: isSpotifyConnected ? 'rgba(29, 185, 84, 0.3)' : 'rgba(255,255,255,0.08)', background: isSpotifyConnected ? 'rgba(29, 185, 84, 0.1)' : 'rgba(0,0,0,0.2)' }}>
-            {isSpotifyConnected ? 'Authenticated' : 'Not Connected'}
+          <span className="glass-panel" style={{ padding: '4px 12px', fontSize: '0.85rem', color: lastfmApiKey ? '#1DB954' : '#E31B23', borderColor: lastfmApiKey ? 'rgba(29, 185, 84, 0.3)' : 'rgba(227, 27, 35, 0.3)', background: lastfmApiKey ? 'rgba(29, 185, 84, 0.1)' : 'rgba(227, 27, 35, 0.05)' }}>
+            {lastfmApiKey ? 'Custom Key Active' : 'Using Shared Default Key'}
           </span>
         </div>
         
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.4' }}>
-          To generate recommendations, you need a free Spotify Developer Account. 
-          Go to <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noreferrer" style={{ color: '#1DB954', textDecoration: 'underline' }}>Spotify Developer Dashboard</a>, create an App, and copy its <b>Client ID</b>. Add <code>{window.location.origin + window.location.pathname}</code> to your app's <b>Redirect URIs</b> in Spotify settings.
+          To avoid Spotify's new paid developer policies, VibeSync uses Last.fm's database to fetch similar tracks. A default public API key is provided, but you can create a free developer key in 30 seconds to avoid shared rate limits.
         </p>
 
+        <button 
+          className="btn btn-secondary" 
+          style={{ alignSelf: 'flex-start', fontSize: '0.85rem', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          onClick={() => setShowLfmInstructions(!showLfmInstructions)}
+        >
+          <HelpCircle size={16} /> {showLfmInstructions ? 'Hide Instructions' : 'How to get a Free Last.fm Key'}
+        </button>
+
+        {showLfmInstructions && (
+          <div className="glass-panel" style={{ padding: '16px', fontSize: '0.9rem', lineHeight: '1.5', background: 'rgba(0,0,0,0.3)', borderLeft: '3px solid #E31B23' }}>
+            <ol style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <li>Go to <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer" style={{ color: '#E31B23', fontWeight: 'bold' }}>Last.fm API Account Creation</a> (free signup).</li>
+              <li>Enter <b>VibeSync</b> as the Application Name, add your email, and leave other fields blank.</li>
+              <li>Click <b>Submit</b>.</li>
+              <li>Copy the <b>API Key</b> (you do not need the shared secret) and paste it below!</li>
+            </ol>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Spotify Client ID</label>
+          <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Last.fm API Key</label>
           <input 
             type="text" 
-            placeholder="e.g. 4d95b5e7d8..." 
+            placeholder="Paste your Last.fm API Key here..." 
             className="input-field"
-            value={spotifyClientId}
-            onChange={(e) => setSpotifyClientId(e.target.value)}
-            disabled={isSpotifyConnected}
+            value={lastfmApiKey}
+            onChange={(e) => setLastfmApiKey(e.target.value)}
           />
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-          {!isSpotifyConnected ? (
-            <button className="btn btn-spotify" onClick={handleSpotifyLogin}>
-              Connect Spotify Account
-            </button>
-          ) : (
-            <button className="btn btn-secondary" onClick={handleSpotifyDisconnect}>
-              Disconnect Spotify
-            </button>
-          )}
-          {!isSpotifyConnected && spotifyClientId && (
-            <button className="btn btn-secondary" onClick={saveSpotifyConfig}>
-              Save Client ID Only
+          <button className="btn" style={{ background: '#E31B23' }} onClick={saveLastfmConfig}>
+            Save Last.fm Key
+          </button>
+          {lastfmApiKey && (
+            <button className="btn btn-secondary" onClick={handleLastfmDisconnect}>
+              Reset to Default Key
             </button>
           )}
         </div>
@@ -231,13 +225,13 @@ export default function Settings({ onSpotifyConnected, onAppleMusicConnected }) 
       </div>
 
       {/* Sync Panel (Only visible on PC/Active tokens to sync to mobile) */}
-      {(isSpotifyConnected || isAppleConnected) && (
+      {(lastfmApiKey || isAppleConnected) && (
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(22, 25, 37, 0.65) 100%)', borderColor: 'rgba(139, 92, 246, 0.2)' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#8B5CF6', fontSize: '1.4rem' }}>
             <Smartphone size={24} /> Sync configurations to iOS/Android
           </h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Don't want to type this on your phone? Generate a sync QR code. Scan it with your phone's camera to instantly import your Spotify Client ID and Apple Music tokens.
+            Don't want to type this on your phone? Generate a sync QR code. Scan it with your phone's camera to instantly import your Last.fm API Key and Apple Music tokens.
           </p>
           <button className="btn" style={{ background: '#8B5CF6', alignSelf: 'flex-start' }} onClick={generateSyncQr}>
             Generate Mobile Sync QR Code

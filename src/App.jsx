@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ListMusic, Settings as SettingsIcon, Radio, Disc } from 'lucide-react';
+import { Search, ListMusic, Settings as SettingsIcon, Radio } from 'lucide-react';
 import Settings from './components/Settings';
 import SearchAndPlay from './components/SearchAndPlay';
 import Player from './components/Player';
 import QueueList from './components/QueueList';
 
-import { handleSpotifyAuthCallback, searchSpotifyTrack, getSpotifyRecommendations } from './utils/spotifyApi';
+import { getLastfmRecommendations } from './utils/lastfmApi';
 import { initMusicKit, searchAppleMusicTrack, enqueueAppleMusicTrack, isMusicKitInitialized } from './utils/appleMusicApi';
 
 export default function App() {
@@ -16,14 +16,13 @@ export default function App() {
   const [appleInitialized, setAppleInitialized] = useState(false);
   const [lastSeededTrackId, setLastSeededTrackId] = useState(null);
 
-  // 1. Load QR configurations or handle Spotify Redirect Hash on load
+  // 1. Load QR configurations on load
   useEffect(() => {
-    // Check QR code sync config
     const hash = window.location.hash;
     if (hash && hash.startsWith('#config=')) {
       try {
         const configData = JSON.parse(atob(hash.substring(8)));
-        if (configData.spotifyClientId) localStorage.setItem('spotify_client_id', configData.spotifyClientId);
+        if (configData.lastfmApiKey) localStorage.setItem('lastfm_api_key', configData.lastfmApiKey);
         if (configData.amDevToken) localStorage.setItem('apple_music_developer_token', configData.amDevToken);
         if (configData.amUserToken) localStorage.setItem('apple_music_user_token', configData.amUserToken);
         
@@ -33,9 +32,6 @@ export default function App() {
         console.error('Failed to parse sync QR code config', e);
       }
     }
-
-    // Handle Spotify Auth Redirect Callback
-    handleSpotifyAuthCallback();
 
     // Initialize Apple Music if keys exist
     const devToken = localStorage.getItem('apple_music_developer_token');
@@ -49,7 +45,7 @@ export default function App() {
     }
   }, []);
 
-  // 2. Track Change Listeners to trigger Spotify Autoplay recommendations
+  // 2. Track Change Listeners to trigger recommendations
   useEffect(() => {
     if (!appleInitialized) return;
     const music = window.MusicKit.getInstance();
@@ -58,7 +54,6 @@ export default function App() {
       const item = music.player.nowPlayingItem;
       if (!item) return;
 
-      // Create local track representation
       const track = {
         id: item.id,
         name: item.title,
@@ -68,12 +63,12 @@ export default function App() {
       
       setCurrentTrack(track);
 
-      // Prevent infinite loops / redundant seeding if the song has already been seeded
+      // Prevent redundant seeding
       if (item.id === lastSeededTrackId) return;
       setLastSeededTrackId(item.id);
 
-      // Fetch recommendations based on this new playing song!
-      await generateSpotifyAutoplayQueue(item.title, item.artistName);
+      // Fetch recommendations based on this new playing song
+      await generateAutoplayQueue(item.title, item.artistName);
     };
 
     music.addEventListener('nowPlayingItemDidChange', handleItemChange);
@@ -83,22 +78,15 @@ export default function App() {
   }, [appleInitialized, lastSeededTrackId]);
 
   /**
-   * Triggers Spotify recommendation generation and Apple Music enqueuing
+   * Triggers recommendation generation and Apple Music enqueuing
    */
-  const generateSpotifyAutoplayQueue = async (trackName, artistName) => {
+  const generateAutoplayQueue = async (trackName, artistName) => {
     try {
-      console.log(`Generating Spotify recommendations for seed: ${trackName} - ${artistName}`);
+      console.log(`Generating Last.fm recommendations for: ${trackName} - ${artistName}`);
       
-      // Get Spotify equivalent track
-      const spotifyTrack = await searchSpotifyTrack(trackName, artistName);
-      if (!spotifyTrack) {
-        console.warn('Could not find matching seed track on Spotify.');
-        return;
-      }
-
-      // Fetch 15 recommendations based on the Spotify ID
-      const recs = await getSpotifyRecommendations([spotifyTrack.id]);
-      setSpotifyRecs(recs);
+      // Get similar tracks from Last.fm
+      const recs = await getLastfmRecommendations(trackName, artistName);
+      setSpotifyRecs(recs); // Keep name as spotifyRecs to avoid breaking QueueList.jsx reference
 
       // Initialize matching statuses
       const initialStatus = {};
@@ -140,7 +128,7 @@ export default function App() {
       // Reset recommendations visual lists
       setSpotifyRecs([]);
       setMatchingStatus({});
-      setLastSeededTrackId(song.id); // set immediately to indicate we are seeding this track
+      setLastSeededTrackId(song.id);
 
       // Set player queue and start playing
       await music.setQueue({ song: song.id });
@@ -153,8 +141,8 @@ export default function App() {
         artworkUrl: song.artworkUrl
       });
 
-      // Fetch recommendations based on the selected song
-      await generateSpotifyAutoplayQueue(song.name, song.artist);
+      // Fetch recommendations
+      await generateAutoplayQueue(song.name, song.artist);
     } catch (err) {
       console.error('Play track failed', err);
       alert('Failed to play track. Ensure Apple Music is fully initialized.');
@@ -174,7 +162,7 @@ export default function App() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Radio size={28} color="#FC3C44" />
-          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-heading)', background: 'linear-gradient(to right, #FC3C44, #8B5CF6, #1DB954)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-heading)', background: 'linear-gradient(to right, #FC3C44, #8B5CF6, #E31B23)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             VibeSync
           </h1>
         </div>
@@ -219,7 +207,6 @@ export default function App() {
         
         {activeTab === 'settings' && (
           <Settings 
-            onSpotifyConnected={() => {}} 
             onAppleMusicConnected={() => setAppleInitialized(isMusicKitInitialized())} 
           />
         )}
