@@ -57,13 +57,17 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     }
   }
 
-  // Set the developer token directly on the instance if needed
-  if (!music.developerToken) {
+  // Set the developer token and storefront directly on the instance to prevent VPN geo-ip errors
+  if (music && !music.developerToken) {
     music.developerToken = cleanToken;
+  }
+  
+  if (music) {
+    music.storefrontId = effectiveStorefront;
   }
 
   // Apply user token if provided
-  if (musicUserToken) {
+  if (music && musicUserToken) {
     music.musicUserToken = musicUserToken.trim();
   }
 
