@@ -286,6 +286,27 @@ export default function Settings({ onAppleMusicConnected }) {
               Disconnect Apple Music
             </button>
           )}
+          <button 
+            className="btn btn-secondary" 
+            style={{ borderColor: 'rgba(252, 60, 68, 0.4)', color: '#FC3C44', background: 'rgba(252, 60, 68, 0.05)' }} 
+            onClick={async () => {
+              if (window.confirm("This will completely clear your cached tokens and restart the application. Continue?")) {
+                try {
+                  const music = window.MusicKit?.getInstance();
+                  if (music) await music.unauthorize();
+                } catch(e){}
+                localStorage.clear();
+                sessionStorage.clear();
+                document.cookie.split(";").forEach(c => {
+                  const name = c.trim().split("=")[0];
+                  if (name) document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+                });
+                window.location.reload();
+              }
+            }}
+          >
+            Hard Reset App
+          </button>
         </div>
       </div>
 
