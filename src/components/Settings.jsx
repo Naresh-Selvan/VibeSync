@@ -78,6 +78,28 @@ export default function Settings({ onAppleMusicConnected }) {
       alert('Apple Music Connected Successfully!');
     } catch (err) {
       console.error(err);
+      
+      if (cleanUserToken) {
+        console.warn("Init failed with user token, clearing and retrying...");
+        localStorage.removeItem('apple_music_user_token');
+        setAmUserToken('');
+        try {
+          const music = await initMusicKit(cleanDevToken, null, amStorefront);
+          const newUserToken = await music.authorize();
+          setAmUserToken(newUserToken);
+          localStorage.setItem('apple_music_user_token', newUserToken);
+          setIsAppleConnected(true);
+          if (onAppleMusicConnected) onAppleMusicConnected();
+          alert('Apple Music Connected Successfully (Session Refreshed)!');
+          return;
+        } catch (retryErr) {
+          console.error("Retry failed", retryErr);
+          const errMsg = retryErr.message || retryErr.statusText || (retryErr.description) || JSON.stringify(retryErr);
+          setAmError(`Failed to initialize MusicKit (session refresh failed): ${errMsg}${tokenPayloadDetails}`);
+          return;
+        }
+      }
+      
       const errMsg = err.message || err.statusText || (err.description) || JSON.stringify(err);
       setAmError(`Failed to initialize MusicKit: ${errMsg}${tokenPayloadDetails}`);
     } finally {

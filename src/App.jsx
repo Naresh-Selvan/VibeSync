@@ -42,7 +42,15 @@ export default function App() {
         .then(() => {
           setAppleInitialized(true);
         })
-        .catch(err => console.error('Auto MusicKit load failed', err));
+        .catch(err => {
+          console.error('Auto MusicKit load failed, retrying without user token', err);
+          if (userToken) {
+            localStorage.removeItem('apple_music_user_token');
+            initMusicKit(devToken, null, storefront)
+              .then(() => setAppleInitialized(true))
+              .catch(e => console.error('Auto MusicKit retry failed', e));
+          }
+        });
     }
   }, []);
 
