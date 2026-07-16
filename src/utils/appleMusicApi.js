@@ -33,6 +33,7 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     try {
       music = await window.MusicKit.configure({
         developerToken: cleanToken,
+        storefrontId: effectiveStorefront,
         app: {
           name: 'VibeSync',
           build: '1.0.0'
