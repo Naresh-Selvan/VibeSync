@@ -207,6 +207,7 @@ export default function Settings({ onAppleMusicConnected }) {
             disabled={isAppleConnected}
             style={{ background: 'rgba(0, 0, 0, 0.3)', color: 'white' }}
           >
+            <option value="">Auto-Detect (Recommended without VPN)</option>
             <option value="in">India (in)</option>
             <option value="us">United States (us)</option>
             <option value="gb">United Kingdom (gb)</option>

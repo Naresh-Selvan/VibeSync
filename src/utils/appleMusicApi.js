@@ -14,14 +14,19 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
   }
 
   try {
-    const music = await window.MusicKit.configure({
+    const config = {
       developerToken: developerToken.trim(),
-      storefrontId: storefrontId,
       app: {
         name: 'VibeSync',
         build: '1.0.0'
       }
-    });
+    };
+    
+    if (storefrontId) {
+      config.storefrontId = storefrontId;
+    }
+
+    const music = await window.MusicKit.configure(config);
 
     if (musicUserToken) {
       music.musicUserToken = musicUserToken.trim();

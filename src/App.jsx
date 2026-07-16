@@ -36,8 +36,9 @@ export default function App() {
     // Initialize Apple Music if keys exist
     const devToken = localStorage.getItem('apple_music_developer_token');
     const userToken = localStorage.getItem('apple_music_user_token');
+    const storefront = localStorage.getItem('apple_music_storefront') || 'in';
     if (devToken) {
-      initMusicKit(devToken, userToken || null)
+      initMusicKit(devToken, userToken || null, storefront)
         .then(() => {
           setAppleInitialized(true);
         })
