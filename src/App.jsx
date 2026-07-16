@@ -131,20 +131,14 @@ export default function App() {
       return;
     }
 
-    try {
+    const playWithId = async (trackId) => {
       const music = window.MusicKit.getInstance();
-      
-      // Reset recommendations visual lists
-      setSpotifyRecs([]);
-      setMatchingStatus({});
-      setLastSeededTrackId(song.id);
-
       // Set player queue and start playing (using startPlaying: true to bypass browser autoplay blocks)
       try {
-        await music.setQueue({ song: song.id, startPlaying: true });
+        await music.setQueue({ song: trackId, startPlaying: true });
       } catch (queueErr) {
         console.warn('setQueue with song failed, trying fallback with songs array', queueErr);
-        await music.setQueue({ songs: [song.id], startPlaying: true });
+        await music.setQueue({ songs: [trackId], startPlaying: true });
       }
 
       // Explicit play invocation just in case startPlaying option is not supported or didn't auto-start
@@ -153,16 +147,67 @@ export default function App() {
       } catch (playErr) {
         console.warn('Explicit music.play() call failed or was already playing:', playErr);
       }
-      
-      setCurrentTrack({
-        id: song.id,
-        name: song.name,
-        artist: song.artist,
-        artworkUrl: song.artworkUrl
-      });
+    };
 
-      // Fetch recommendations
-      await generateAutoplayQueue(song.name, song.artist);
+    try {
+      const music = window.MusicKit.getInstance();
+      
+      // Reset recommendations visual lists
+      setSpotifyRecs([]);
+      setMatchingStatus({});
+      setLastSeededTrackId(song.id);
+
+      try {
+        await playWithId(song.id);
+        
+        setCurrentTrack({
+          id: song.id,
+          name: song.name,
+          artist: song.artist,
+          artworkUrl: song.artworkUrl
+        });
+
+        // Fetch recommendations
+        await generateAutoplayQueue(song.name, song.artist);
+      } catch (err) {
+        const errStr = String(err?.message || err?.description || err?.name || err || '');
+        if (errStr.includes('CONTENT_EQUIVALENT')) {
+          const storefront = music.storefrontId || 'us';
+          console.log(`Caught CONTENT_EQUIVALENT error for song ${song.id}. Attempting to resolve equivalent ID in storefront: ${storefront}`);
+          
+          try {
+            const response = await music.api.music(`/v1/catalog/${storefront}/songs`, {
+              'filter[equivalents]': song.id
+            });
+            
+            if (response && response.data && response.data.length > 0) {
+              const equivalentId = response.data[0].id;
+              console.log(`Resolved equivalent song ID: ${equivalentId}. Retrying playback.`);
+              
+              await playWithId(equivalentId);
+              
+              // Success on retry! Update states with the equivalent ID
+              setLastSeededTrackId(equivalentId);
+              setCurrentTrack({
+                id: equivalentId,
+                name: song.name,
+                artist: song.artist,
+                artworkUrl: song.artworkUrl
+              });
+              
+              await generateAutoplayQueue(song.name, song.artist);
+              return; // Exit successfully
+            } else {
+              console.warn(`No equivalent song found in storefront ${storefront} for ID ${song.id}`);
+            }
+          } catch (apiErr) {
+            console.error('Failed to retrieve equivalent song from Apple Music API', apiErr);
+          }
+        }
+        
+        // Re-throw if it wasn't CONTENT_EQUIVALENT or if equivalent lookup/retry failed
+        throw err;
+      }
     } catch (err) {
       console.error('Play track failed', err);
       const errMsg = err?.message || err?.description || err?.name || JSON.stringify(err);
