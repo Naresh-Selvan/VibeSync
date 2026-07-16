@@ -37,13 +37,16 @@ export default function Settings({ onAppleMusicConnected }) {
     setAmLoading(true);
     setAmError('');
     
+    const cleanDevToken = amDevToken.trim();
+    const cleanUserToken = amUserToken ? amUserToken.trim() : '';
+
     try {
-      localStorage.setItem('apple_music_developer_token', amDevToken);
-      if (amUserToken) {
-        localStorage.setItem('apple_music_user_token', amUserToken);
+      localStorage.setItem('apple_music_developer_token', cleanDevToken);
+      if (cleanUserToken) {
+        localStorage.setItem('apple_music_user_token', cleanUserToken);
       }
       
-      const music = await initMusicKit(amDevToken, amUserToken || null);
+      const music = await initMusicKit(cleanDevToken, cleanUserToken || null);
       
       // If user token is not set, authorize the user
       if (!music.musicUserToken) {

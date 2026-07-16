@@ -15,7 +15,7 @@ export async function initMusicKit(developerToken, musicUserToken = null) {
 
   try {
     const music = await window.MusicKit.configure({
-      developerToken: developerToken,
+      developerToken: developerToken.trim(),
       app: {
         name: 'VibeSync',
         build: '1.0.0'
@@ -23,13 +23,13 @@ export async function initMusicKit(developerToken, musicUserToken = null) {
     });
 
     if (musicUserToken) {
-      music.musicUserToken = musicUserToken;
+      music.musicUserToken = musicUserToken.trim();
     }
 
     // Save configuration in localStorage for reload persistence
-    localStorage.setItem('apple_music_developer_token', developerToken);
+    localStorage.setItem('apple_music_developer_token', developerToken.trim());
     if (musicUserToken) {
-      localStorage.setItem('apple_music_user_token', musicUserToken);
+      localStorage.setItem('apple_music_user_token', musicUserToken.trim());
     }
 
     return music;
