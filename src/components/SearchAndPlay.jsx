@@ -48,7 +48,8 @@ export default function SearchAndPlay({ onPlayTrack }) {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to search Apple Music catalog.');
+      const errMsg = err.message || err.statusText || (err.description) || JSON.stringify(err);
+      setError(`Failed to search Apple Music catalog: ${errMsg}`);
     } finally {
       setLoading(false);
     }
