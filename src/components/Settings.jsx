@@ -60,7 +60,8 @@ export default function Settings({ onAppleMusicConnected }) {
       alert('Apple Music Connected Successfully!');
     } catch (err) {
       console.error(err);
-      setAmError('Failed to initialize MusicKit. Please check your Developer Token.');
+      const errMsg = err.message || err.statusText || (err.description) || JSON.stringify(err);
+      setAmError(`Failed to initialize MusicKit: ${errMsg}`);
     } finally {
       setAmLoading(false);
     }
