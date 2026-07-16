@@ -69,9 +69,25 @@ export async function initMusicKit(developerToken, musicUserToken = null, storef
     music.storefrontId = effectiveStorefront;
   }
 
-  // Apply user token if provided
+  // Apply user token if provided (override read-only properties)
   if (music && musicUserToken) {
-    music.musicUserToken = musicUserToken.trim();
+    try {
+      Object.defineProperty(music, 'musicUserToken', {
+        value: musicUserToken.trim(),
+        writable: true,
+        configurable: true
+      });
+      Object.defineProperty(music, 'isAuthorized', {
+        value: true,
+        writable: true,
+        configurable: true
+      });
+      console.log("Successfully injected musicUserToken and isAuthorized directly onto the MusicKit instance.");
+    } catch (e) {
+      console.error("Failed to inject musicUserToken via Object.defineProperty:", e);
+      // Fallback
+      music.musicUserToken = musicUserToken.trim();
+    }
   }
 
   // Save configuration in localStorage for reload persistence
