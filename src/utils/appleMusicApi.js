@@ -123,29 +123,50 @@ export async function unauthorizeAppleMusic() {
   localStorage.removeItem('apple_music_user_token');
 }
 
-/**
- * Searches the Apple Music Catalog for a track matching query terms
- * @param {string} trackName 
- * @param {string} artistName 
- * @returns {Promise<Object|null>} Match object { id, name, artist, album }
- */
 export async function searchAppleMusicTrack(trackName, artistName) {
-  if (!isMusicKitInitialized()) return null;
-  const music = window.MusicKit.getInstance();
-  
-  const storefront = music.storefrontId || localStorage.getItem('apple_music_storefront') || 'us';
-  // Standardize and clean query term
+  const storefront = localStorage.getItem('apple_music_storefront') || 'us';
+  const devToken = localStorage.getItem('apple_music_developer_token');
+  if (!devToken) {
+    console.warn("No Developer Token found in localStorage.");
+    return null;
+  }
+
   const term = `${trackName} ${artistName}`.replace(/[()\-+]/g, "").trim();
+  const url = `https://api.music.apple.com/v1/catalog/${storefront}/search?term=${encodeURIComponent(term)}&types=songs&limit=1`;
+
+  const makeRequest = async (useUserToken) => {
+    const headers = {
+      'Authorization': `Bearer ${devToken.trim()}`
+    };
+    if (useUserToken) {
+      const userToken = localStorage.getItem('apple_music_user_token');
+      if (userToken) {
+        headers['Music-User-Token'] = userToken.trim();
+      }
+    }
+    return fetch(url, { headers });
+  };
 
   try {
-    const response = await music.api.music(`/v1/catalog/${storefront}/search`, {
-      term: term,
-      types: 'songs',
-      limit: 1
-    });
+    let response = await makeRequest(true);
 
-    if (response.data && response.data.results && response.data.results.songs) {
-      const song = response.data.results.songs.data[0];
+    if (response.status === 401) {
+      console.warn("Catalog search returned 401 with user token, retrying without user token...");
+      response = await makeRequest(false);
+      
+      if (response.ok) {
+        console.warn("User token is invalid/expired. Clearing it.");
+        localStorage.removeItem('apple_music_user_token');
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (data.results && data.results.songs) {
+      const song = data.results.songs.data[0];
       if (song) {
         return {
           id: song.id,
@@ -157,30 +178,43 @@ export async function searchAppleMusicTrack(trackName, artistName) {
         };
       }
     }
-    
+
     // Fallback: search just the song name
-    const fbResponse = await music.api.music(`/v1/catalog/${storefront}/search`, {
-      term: trackName,
-      types: 'songs',
-      limit: 5
-    });
-    
-    if (fbResponse.data && fbResponse.data.results && fbResponse.data.results.songs) {
-      const songs = fbResponse.data.results.songs.data;
-      // Try to find a song where the artist matches (case-insensitive substring)
-      const matchedSong = songs.find(s => 
-        s.attributes.artistName.toLowerCase().includes(artistName.toLowerCase()) ||
-        artistName.toLowerCase().includes(s.attributes.artistName.toLowerCase())
-      );
-      if (matchedSong) {
-        return {
-          id: matchedSong.id,
-          name: matchedSong.attributes.name,
-          artist: matchedSong.attributes.artistName,
-          album: matchedSong.attributes.albumName,
-          artworkUrl: matchedSong.attributes.artwork ? matchedSong.attributes.artwork.url : null,
-          duration: matchedSong.attributes.durationInMillis
-        };
+    const fbUrl = `https://api.music.apple.com/v1/catalog/${storefront}/search?term=${encodeURIComponent(trackName)}&types=songs&limit=5`;
+    const makeFbRequest = async (useUserToken) => {
+      const headers = {
+        'Authorization': `Bearer ${devToken.trim()}`
+      };
+      if (useUserToken) {
+        const userToken = localStorage.getItem('apple_music_user_token');
+        if (userToken) headers['Music-User-Token'] = userToken.trim();
+      }
+      return fetch(fbUrl, { headers });
+    };
+
+    let fbResponse = await makeFbRequest(true);
+    if (fbResponse.status === 401) {
+      fbResponse = await makeFbRequest(false);
+    }
+
+    if (fbResponse.ok) {
+      const fbData = await fbResponse.json();
+      if (fbData.results && fbData.results.songs) {
+        const songs = fbData.results.songs.data;
+        const matchedSong = songs.find(s => 
+          s.attributes.artistName.toLowerCase().includes(artistName.toLowerCase()) ||
+          artistName.toLowerCase().includes(s.attributes.artistName.toLowerCase())
+        );
+        if (matchedSong) {
+          return {
+            id: matchedSong.id,
+            name: matchedSong.attributes.name,
+            artist: matchedSong.attributes.artistName,
+            album: matchedSong.attributes.albumName,
+            artworkUrl: matchedSong.attributes.artwork ? matchedSong.attributes.artwork.url : null,
+            duration: matchedSong.attributes.durationInMillis
+          };
+        }
       }
     }
 
