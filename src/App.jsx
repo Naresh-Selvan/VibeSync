@@ -172,49 +172,53 @@ export default function App() {
       } catch (err) {
         const errStr = String(err?.message || err?.description || err?.name || err || '');
         if (errStr.includes('CONTENT_EQUIVALENT')) {
-          console.log(`Caught CONTENT_EQUIVALENT error for song ${song.id}. Attempting to resolve actual user storefront first.`);
+          const fallbackRegions = ['us', 'gb', 'ca', 'au', 'in']; // Try these storefront regions sequentially
+          const activeStorefront = localStorage.getItem('apple_music_storefront') || 'in';
+          const targetRegions = fallbackRegions.filter(r => r !== activeStorefront);
+
+          console.log(`Caught CONTENT_EQUIVALENT error. Attempting public iTunes equivalent lookup in fallback regions: ${targetRegions.join(', ')}`);
           
-          let storefront = music.storefrontId || 'us';
           try {
-            const storefrontResponse = await music.api.music('/v1/me/storefront');
-            if (storefrontResponse && storefrontResponse.data && storefrontResponse.data.length > 0) {
-              storefront = storefrontResponse.data[0].id;
-              console.log(`Resolved actual user storefront region: ${storefront}`);
-              music.storefrontId = storefront;
-              localStorage.setItem('apple_music_storefront', storefront);
-            }
-          } catch (storefrontErr) {
-            console.warn("Failed to fetch user storefront on error fallback, using default", storefrontErr);
-          }
-          
-          console.log(`Querying equivalents for song ${song.id} in storefront: ${storefront}`);
-          try {
-            const response = await music.api.music(`/v1/catalog/${storefront}/songs`, {
-              'filter[equivalents]': song.id
-            });
+            const { findTrack } = await import('./utils/itunesApi.js');
             
-            if (response && response.data && response.data.length > 0) {
-              const equivalentId = response.data[0].id;
-              console.log(`Resolved equivalent song ID: ${equivalentId}. Retrying playback.`);
-              
-              await playWithId(equivalentId);
-              
-              // Success on retry! Update states with the equivalent ID
-              setLastSeededTrackId(equivalentId);
-              setCurrentTrack({
-                id: equivalentId,
-                name: song.name,
-                artist: song.artist,
-                artworkUrl: song.artworkUrl
-              });
-              
-              await generateAutoplayQueue(song.name, song.artist);
-              return; // Exit successfully
-            } else {
-              console.warn(`No equivalent song found in storefront ${storefront} for ID ${song.id}`);
+            for (const region of targetRegions) {
+              try {
+                console.log(`Looking up equivalent track for "${song.name}" by "${song.artist}" in region: ${region}`);
+                const match = await findTrack(song.name, song.artist, region);
+                if (match && match.id) {
+                  console.log(`Found equivalent track ID: ${match.id} in region: ${region}. Retrying playback...`);
+                  await playWithId(match.id);
+                  
+                  // If play succeeds without throwing, we're done! Update the states and exit.
+                  console.log(`Playback succeeded on retry with region: ${region}`);
+                  setLastSeededTrackId(match.id);
+                  setCurrentTrack({
+                    id: match.id,
+                    name: song.name,
+                    artist: song.artist,
+                    artworkUrl: song.artworkUrl
+                  });
+                  
+                  // Update the storefront in localStorage for future searches
+                  localStorage.setItem('apple_music_storefront', region);
+                  if (music) {
+                    music.storefrontId = region;
+                  }
+                  
+                  await generateAutoplayQueue(song.name, song.artist);
+                  return; // Exit successfully!
+                }
+              } catch (retryErr) {
+                const retryErrStr = String(retryErr?.message || retryErr?.description || retryErr?.name || retryErr || '');
+                if (retryErrStr.includes('CONTENT_EQUIVALENT')) {
+                  console.log(`Equivalent track in region ${region} also returned CONTENT_EQUIVALENT. Continuing to next region...`);
+                } else {
+                  console.warn(`Retry failed in region ${region} due to error:`, retryErr);
+                }
+              }
             }
-          } catch (apiErr) {
-            console.error('Failed to retrieve equivalent song from Apple Music API', apiErr);
+          } catch (importErr) {
+            console.error('Failed to import itunesApi dynamically', importErr);
           }
         }
         
